@@ -914,11 +914,16 @@ server <- function(input, output, session){
       }
     }
     else{
+      if(input$same_nb_rep | !nbrep_matrix_check$x){
+        nbrep <- input$nb_rep
+      }
+      else{
+        nbrep <- as.numeric(input$diff_nb_rep[,1])
+      }
       labs_cond <-  unlist(mapply(rep, as.character(input$cond_name[,grep("Condition",
                                                                           colnames(input$cond_name),
                                                                           value = TRUE)]),
-                                  ifelse(input$same_nb_rep | !nbrep_matrix_check$x, input$nb_rep, as.numeric(input$diff_nb_rep[,1])),
-                                  SIMPLIFY = FALSE)
+                                  nbrep, SIMPLIFY = FALSE)
                            )
       labs_cond <- c(labs_cond,
                      as.character(input$cond_name[,grep("Mix",
@@ -985,25 +990,30 @@ server <- function(input, output, session){
     noise <- tmt_interference_noise(design, tmtinter)
     edges <- tmt_interference_links(design, tmtinter)
 
-    edges_info <-  nodes[(nb_chan + 1):(2*nb_chan), c("id", "label", "x")]
-    edges_info <- merge(design_info, edges_info,
-                        by = "x")
-    edges_info <- edges_info[,c("channel", "id")]
+    if(!is.null(edges)){
+      edges_info <-  nodes[(nb_chan + 1):(2*nb_chan), c("id", "label", "x")]
+      edges_info <- merge(design_info, edges_info,
+                          by = "x")
+      edges_info <- edges_info[,c("channel", "id")]
 
-    edges <- merge(merge(edges, edges_info,
-                         by.x = "from", by.y = "channel"
-                         ),
-                   edges_info,
-                   by.x = "to", by.y = "channel"
-                   )
-    edges <- edges[,3:4]
-    colnames(edges) <- c("from", "to")
+      edges <- merge(merge(edges, edges_info,
+                           by.x = "from", by.y = "channel"
+      ),
+      edges_info,
+      by.x = "to", by.y = "channel"
+      )
+      edges <- edges[,3:4]
+      colnames(edges) <- c("from", "to")
 
-    edges$color <- "#FF000091"
-    edges$arrows <- "to"
-    edges$id <- 1:nrow(edges)
+      edges$color <- "#FF000091"
+      edges$arrows <- "to"
+      edges$id <- 1:nrow(edges)
 
-    nb_edges$x <- nrow(edges)
+      nb_edges$x <- nrow(edges)
+    }
+    else{
+      nb_edges$x <- 0
+    }
 
     net_vis <- visNetwork(nodes, edges, width = "100%",
                           main =  paste0("Noise of ", noise, "%")) %>%
@@ -1136,6 +1146,7 @@ server <- function(input, output, session){
       }
       noise <- tmt_interference_noise(design, tmtinter)
       edges <- tmt_interference_links(design, tmtinter)
+
       if(!is.null(edges)){
         design_info <- merge(data.frame(channel = design_info$label[1:nb_chan],
                                         x = design_info$x[1:nb_chan]
