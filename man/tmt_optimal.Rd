@@ -11,9 +11,7 @@ tmt_optimal(
   nmix = 0,
   tmt_correction = NULL,
   exact = FALSE,
-  maxiter = 100,
-  method = c("neighbors", "next"),
-  when_change = 10,
+  maxiter = 10,
   your_design = NULL
 )
 }
@@ -36,13 +34,6 @@ of the corresponding channels. If NULL, takes the default data from optTMT.}
 Hence, it cannot be performed for a TMT set of greater size than 11.}
 
 \item{maxiter}{If exact is FALSE, the maximum number of iteration of the optimization procedure.}
-
-\item{method}{If exact is FALSE, specify the method for getting other configuration of the design.
-Either 'neighbors', which compute the all the neighbors of the design; or 'next' which computes
-the next permutation of the design instead.}
-
-\item{when_change}{If the method is 'next', after how many iterations shuffling should be done
-after the global interference didn't reduce.}
 
 \item{your_design}{A named vector corresponding to the starting experimental design to optimize.
 If NULL, will start with all the unique conditions grouped together.}
