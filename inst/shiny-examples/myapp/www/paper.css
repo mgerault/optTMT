@@ -1,0 +1,63 @@
+html {
+  height: 100%;
+}
+body {
+  margin: auto;
+  width: 100%; 
+  min-height: 100%;
+  font-size: 20px;
+  font-family: Georgia, serif; 
+  background-color: #FAFFF9;
+}
+.container-fluid .tab-content {
+	background-color: #FAFFF9;
+}
+h1 {
+	font-size: 35px;
+	font-family: Georgia, serif;
+	font-weight: bold;
+}
+h2 {
+	font-size: 30px;
+	font-family: Georgia, serif;
+	font-weight: bold;
+}
+h5 {
+	font-size: 20px;
+	font-family: Georgia, serif;
+}
+
+.navbar {
+	background-color: #B9F2B2;
+}
+
+.navbar .navbar-collapse li {
+  width: 25%;
+  height: 100%;
+  font-size: 100%;
+  font-family: fantasy;
+  background-color: transparent;
+  color: transparent;
+  border-color: transparent;
+}
+
+.navbar .navbar-collapse a {
+  height: 100%;
+  background-color: #FFFFFF00;
+  color: #FFFFFF00;
+}
+
+.navbar .navbar-collapse .active a {
+  background-color: #FFFFFF00;
+  color: #FFFFFF00;
+  border-color: #FFFFFF00;
+}
+
+.navbar-header .navbar-brand {
+	color: #000000;
+	font-size: 40px;
+    font-family: fantasy;
+	font-style: italic;
+	font-weight: 200;
+}
+

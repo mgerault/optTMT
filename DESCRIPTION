@@ -1,0 +1,22 @@
+Package: optTMT
+Type: Package
+Title: Optimize your experimental design for proteomics TMT experiment
+Version: 1.0
+Author: Marc-Antoine GERAULT
+Maintainer: Marc-Antoine GERAULT <marco.gerault@gmail.com>
+Description: Contains functions and a shiny application to find the optimal experimental design
+  for your proteomics experiment when using TMT. The goal is to minimize the TMT reporter ion interference.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 4.1.0),
+    dplyr (>= 1.1.0),
+    ggplot2 (>= 3.2.0)
+Imports: ggplot2,  dplyr, tidyr, tabulapdf, readr, openxlsx,
+   shiny, shinydashboard, shinyMatrix, shinycssloaders, shinyjs,
+   multicool, DT, visNetwork
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

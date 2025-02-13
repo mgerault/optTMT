@@ -1,0 +1,169 @@
+---
+title: "Use the optTMT package to find your optimal TMT experimental design"
+author: "Marc-Antoine Gerault"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: dark
+    highlight: espresso
+vignette: >
+  %\VignetteIndexEntry{Use the optTMT package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Introduction  
+
+The goal of optTMT package is to provide a "user-friendly" interface to help any user to find the optimal experimental design for their TMT-plex proteomics experiment. Indeed, one of the drawbacks of using TMT multiplexing is the reporter ion interference, also named as cross-label isotopic impurity. This can arise from manufacture level impurities and experimental error. Where, for example, the reporter ion 127C contains 8.6% of the reporter ion 126 and 1.6% of the reporter ion 128C.
+
+After data analysis, these impurities can lead to false positive and aberrant conclusions. For example, (Brenes et al. 2019) showed that by studying male and female samples in several TMT batches, they could quantify Y chromosome specific peptides in all TMT channels corresponding to the female samples and that the reporter ion interference can have significant effect in the quantification of high intensity peptides. 
+
+By minimizing the interference between the different conditions, an optimal experimental design can be deduced. This is what provide optTMT.
+
+
+--------------------------------------------------------------------------------------------
+
+## Prerequisites
+* R version > 4.0.0 
+* Rstudio version > 1.0
+* Dependent packages:  
+"ggplot2",  "dplyr", "tidyr", "tabulapdf", "readr", "openxlsx", "shiny", "shinydashboard", "shinyMatrix", "shinycssloaders", "shinyjs", "multicool", "DT", "visNetwork"
+
+## Installation
+
+The optTMT package is currently on github, so for installing it you'll also need the "devtools" package.
+You can install the optTMT package with this commands :
+
+```{r, eval=FALSE}
+if(!requireNamespace("devtools", quietly = TRUE)){ #check if you already have the devtools package
+ install.packages("devtools")  #if not, install it
+}
+devtools::install_github("mgerault/optTMT")
+```
+
+You can now call the package:
+
+```{r, warning=FALSE, message=FALSE}
+library(optTMT)
+```
+
+
+You can access the same informations (and the source code) on the [github repository](https://github.com/mgerault/optTMT)
+
+--------------------------------------------------
+
+# How to use optTMT
+
+## R command line workflow
+    
+### Find th optimal design
+
+To find the optimal design that will minimize the global interference between channel, you can call the function `tmt_optimal`. You just have to specify the size of your TMT set (10, 11, 16, 18, 32 or 35), the number of conditions and their corresponding number of replicates and eventually the number of carrier channels you would like to have.
+
+If a channel is empty, then it is not subjected and do not produce any interference. A carrier channel, on the other hand, is usually a channel containing the same sample in multiple TMT batches to increase the probability to identify the same proteins between different TMT batches but is not used for quantification normalization, as in (Dai et al. 2018). Hence, the only interference taken into account for this type of channel is the one it induces to other channels. Such channels are labelled ‘Mix’ by default in optTMT. 
+However, a reference channel is used for quantification normalization across TMT batches. Consequently, the interference it induces to others channels and the one it receives from others needs to be taken into account, i.e. it should be considered as a unique different condition. For that, you can specify a specific number of replicate per condition, so for a reference channel, it should have 1 replicate.
+
+If you use TMT10 or TMT11 you can compute the exact optimum by setting the parameter `exact` to `TRUE`. It will then compute all possible designs but it will take more time than using the optimization solving and most of the time give the same results. So it is preferrable to use the default parameters and eventually increase the number of iterations with `maxiter` if needed.
+
+Let's then compute the optimal design for two experiments. 
+The first one will be using TMT10 and will have 3 conditions in triplicates with a Mix channel.
+The second one will use TMT16 and will have 5 conditions in triplicates and 1 reference channel.
+
+
+```{r, warning=FALSE}
+# first experiment
+opt_tmt10 <- tmt_optimal(TMTset = "10", ncond = 3, rep = 3, nmix = 1)
+
+# second experiment
+opt_tmt16 <- tmt_optimal(TMTset = "16", ncond = 6, rep = c(rep(3,5), 1))
+```
+  
+The `tmt_optimal` function will return a data.frame containing all design tested that lead to a lower global interference. The last row of that data.frame is the best design found. 
+
+If the parameter `tmt_correction` is NULL, the reporter ion interference data used is the default one from optTMT. If you want to know from which ThermoFisher Scientific product number the data were obtained, run `?tmt_interference_data`. `tmt_interference_data` is a list containing the reporter ion interference data of each TMT set. But you can also input your own data if you use a data.frame in the same format as one of tmt_interference_data or use the function `read_tmtinterference`.
+
+### Read your own reporter ion interference data
+
+Such information can be found on ThermoFisher Scientific's website. DEpending on the lot number of the TMT set you are using, these value can slightly change; even though the global tendency stay the same. To ease the reading of such file, a function is provided in optTMT: `read_tmtinterference`. You can read xlsx, csv, txt tab delimited file or even directly the pdf product data sheet from ThermoFisher Scientific. However, since the format of such pdf file is not consistent, it might not read through.
+To read such a file:
+
+```{r, eval=FALSE}
+myTMT_interference <- read_tmtinterference("path_to_TMT_product_data_sheet.pdf")
+```
+
+### Know the global interference of your design
+
+To know which channel are affected by the reporter ion interference and what is the accumulated interference in percentage of your design, you can call the function `tmt_interference_links` and `tmt_interference_noise` respectively. 
+To use these two functions, you'll need a named vector containing the assignment of each channel. If you have a carrier channel, label it 'Mix'. If you have an empty channel, label it 'NA' or assign it to NA. 
+Let's run these function for a given design:
+
+```{r, warning=FALSE}
+# TMT 10 plex, 3 conditions in triplicates
+our_first_design <- c(rep(1:3,3), "Mix")
+names(our_first_design) <- colnames(opt_tmt10)[1:10]
+
+paste0("The global interference for this design is ", tmt_interference_noise(our_first_design), "%")
+print("The channel affected are:")
+tmt_interference_links(our_first_design)
+```
+
+And now for the optimal one we computed earlier, where in theory, the global interference should be lower:
+```{r, warning=FALSE}
+# TMT 10 plex, 3 conditions in triplicates
+optimal_design <- opt_tmt10[nrow(opt_tmt10),-11]
+optimal_design <- unlist(as.list(optimal_design)) # convert data.frame of one row in a named vector
+
+paste0("The global interference for the optimal design is ", tmt_interference_noise(optimal_design), "%")
+print("The channel affected are:")
+tmt_interference_links(optimal_design)
+```
+
+With a simple rearrangement of the samples assignment, the global interference has been divided by 4. Using a TMT11-plex in that case would even more be beneficial as an empty channel would be added, further lowering the possibilities of interference.  
+
+### Visualize the design
+
+To have a better idea of which channel is affected by the interference, you can visualize your design with `draw_design`:
+
+```{r, warning=FALSE, fig.width=12, fig.height=4}
+draw_design(optimal_design)
+```
+
+### Save your possible designs
+
+Once you are satisfied with your experimental design, you can use the function `possible_designs` to compute all equivalent designs which will lead to the same global interference. This function is especially useful if you plan to do large-scale proteomics experiment where you'll use several TMT batches with a reference channel; even more so if you are performing a single-cell proteomics experiment. Indeed, TMT batches should be randomized to accurately estimate and correct batch effect (Vanderaa and Gatto 2021, Gatto et al. 2023).
+
+Let's finally compute those designs from our optimal one.
+
+```{r, warning=FALSE}
+all_my_designs <- possible_designs(optimal_design)
+all_my_designs
+```
+
+From this design you can have 6 different designs leading to the same global interference by swapping all conditions with each other. To save these in excel file you can call the package `openxlsx` and run:
+```{r, eval=FALSE}
+openxlsx::write.xlsx(all_my_designs, "Optimal_designs.xlsx")
+```
+
+
+## Call the Shiny Application
+
+Instead of using an R command line workflow, you can directly call the Shiny Application to interactively and easily obtain your optimal experimental design. To do so just run:
+
+```{r, eval=FALSE}
+runoptTMT()  # this function will directly start the app
+```
+
+The app offer more features (visualization mostly), is faster than using line command and easy to use. 
+
+--------------------------------------------------
+
+# Details
+
+If you want more information, remember that you can use the operator '?' and type the name of the function for accessing the documentation. You can also use the function 'View()' to see the source the code or see it on the [github](https://github.com/mgerault/optTMT) repository.
+
+# Any questions or bug report ?
+
+Feel free to send me an [e-mail](mailto:marco.gerault@gmail.com).
