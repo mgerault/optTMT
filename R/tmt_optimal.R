@@ -14,11 +14,6 @@
 #' @param exact Logical to compute the exact optimum. To do so, all possible permutations will be computed.
 #'   Hence, it cannot be performed for a TMT set of greater size than 11.
 #' @param maxiter If exact is FALSE, the maximum number of iteration of the optimization procedure.
-#' @param method If exact is FALSE, specify the method for getting other configuration of the design.
-#'   Either 'neighbors', which compute the all the neighbors of the design; or 'next' which computes
-#'   the next permutation of the design instead.
-#' @param when_change If the method is 'next', after how many iterations shuffling should be done
-#'   after the global interference didn't reduce.
 #' @param your_design A named vector corresponding to the starting experimental design to optimize.
 #'   If NULL, will start with all the unique conditions grouped together.
 #'
@@ -28,10 +23,8 @@
 
 tmt_optimal <- function(TMTset = c("10","11","16","18","32","35"),
                         ncond = 3, rep = 3, nmix = 0, tmt_correction = NULL,
-                        exact = FALSE, maxiter = 100, method = c("neighbors", "next"), when_change = 10,
-                        your_design = NULL){
+                        exact = FALSE, maxiter = 10, your_design = NULL){
   TMTset <- match.arg(TMTset)
-  method <- match.arg(method)
   TMTset <- as.numeric(TMTset)
 
   # upload tmt correction data
@@ -148,7 +141,7 @@ tmt_optimal <- function(TMTset = c("10","11","16","18","32","35"),
       if(nbperm > 50000){
         message(paste0("Error: The number of possible permutations for your design is ",
                        nbperm, ", computing all of them would take too much time.",
-                       "Set 'exact' to FALSE and use the neighbors method.")
+                       "Set 'exact' to FALSE to use the neighbors method.")
         )
         return(paste0("Warning: The number of possible permutations for your design is ",
                       nbperm, ", it might take some time. Consider using the neighbors method instead."))
@@ -193,60 +186,56 @@ tmt_optimal <- function(TMTset = c("10","11","16","18","32","35"),
     }
     names(design) <- TMTion[[paste(TMTset)]]
 
-    design_best <- design
     minnoise_best <- tmt_interference_noise(design, tmt_correction)
-    all_design <- data.frame(t(design_best), noise = minnoise_best, check.names = FALSE)
+    minnoise_prev <- minnoise_best
+    all_design <- data.frame(t(design), noise = minnoise_best, check.names = FALSE)
     n = 1
     no_change = 0
-    while(xor(n < maxiter, minnoise_best == 0)){
-      do_shuffle <- ifelse(method == "neighbors", no_change > 0, no_change > when_change)
-      if(do_shuffle){
+    while(xor(n <= maxiter, minnoise_best == 0)){
+      if(no_change == 1){
         no_change <- 0
-        design <- sample(design)
+        n <- n + 1
+        design <- sample(unname(design))
+        names(design) <- TMTion[[paste(TMTset)]]
+        minnoise_prev <- tmt_interference_noise(design, tmt_correction)
         if(length(emp)){
           design[is.na(design)] <- 0
         }
       }
-      else{
-        if(any(is.na(design))){
-          design[is.na(design)] <- 0
-        }
 
-        if(method == "next"){
-          design <- nextPermutation(design) # instead of shuffle every time, only go to next perm
-          if(length(emp)){
-            design[design == 0] <- NA
-          }
-          names(design) <- TMTion[[paste(TMTset)]]
-        }
-        else if(method == "neighbors"){
-          d_neigh <- neighbors(design)
-          if(length(emp)){
-            d_neigh <- as.data.frame(apply(d_neigh, 2,
-                                           function(x){
-                                             if(any(x == 0)){
-                                               x[which(x == 0)] <- NA
-                                             };
-                                             x
-                                           })
-            )
-          }
-          d_neigh$noise <- apply(d_neigh, 1, tmt_interference_noise, tmt_correction)
-          design <- unlist(c(d_neigh[which.min(d_neigh$noise),]))[-(TMTset+1)]
-        }
+      if(any(is.na(design))){
+          design[is.na(design)] <- 0
       }
-      minnoise <- tmt_interference_noise(design, tmt_correction)
-      no_change = no_change + 1
-      if(minnoise < minnoise_best){
-        minnoise_best <- minnoise
-        design_best <- design
-        all_design <- as.data.frame(rbind(all_design, data.frame(t(design), noise = minnoise, check.names = FALSE)))
+
+      d_neigh <- neighbors(design)
+      if(length(emp)){
+        d_neigh <- as.data.frame(apply(d_neigh, 2,
+                                       function(x){
+                                         if(any(x == 0)){
+                                           x[which(x == 0)] <- NA
+                                         };
+                                         x
+                                       })
+        )
+      }
+      d_neigh$noise <- apply(d_neigh, 1, tmt_interference_noise, tmt_correction)
+      minnoise <- min(d_neigh$noise)
+
+      if(minnoise < minnoise_prev){
+        design <- unlist(c(d_neigh[which.min(d_neigh$noise),]))[-(TMTset+1)]
+        minnoise_prev <- minnoise
         no_change = 0
       }
-      n = n + 1
+      else{
+        no_change = 1
+      }
+
+      if(minnoise_prev < minnoise_best){
+        minnoise_best <- minnoise_prev
+        all_design <- as.data.frame(rbind(all_design, data.frame(t(design), noise = minnoise_best, check.names = FALSE)))
+        no_change = 0
+      }
     }
-    design_best <- data.frame(t(design_best), check.names = FALSE)
-    design_best$noise <- minnoise_best
 
     message("Done !")
     return(all_design)
