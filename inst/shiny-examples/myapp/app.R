@@ -480,9 +480,7 @@ server <- function(input, output, session){
         design <- tmt_optimal(nbchan_react(), ncond = input$nb_cond,
                               tmt_correction = tmtinter,
                               rep = replicates, nmix = as.numeric(input$nb_mix),
-                              maxiter = input$nb_iter, exact = input$get_exact,
-                              when_change = 5,
-                              method = "neighbors")
+                              maxiter = input$nb_iter, exact = input$get_exact)
       },
       message = function(m) {
         shinyjs::html(id = "diag_opt", html = paste(m$message, "<br>", sep = ""), add = FALSE)
