@@ -883,33 +883,15 @@ server <- function(input, output, session){
 
     nb_chan <- as.numeric(nbchan_react())
 
-    color = grDevices::colors()[grep('gr(a|e)y|white|black|wheat|beige|ivory', grDevices::colors(), invert = T)]
-    color = color[c(1:18)*20 + 9]
-    color = t(grDevices::col2rgb(color))
-    color = apply(color, 1, function(x) grDevices::rgb(x[1], x[2], x[3], maxColorValue = 255))
+    color <- c("#FF1F1F", "#1F49FF", "#26A419", "orange", "#CE50FF", "#00C07E", "#A1D102",
+               "#88281D", "#11007A", "#97FF6A", "#FFA653", "#8200FF", "#186D36", "#FF849E",
+               "#E9D308", "#608ABD", "#0C930C", "#CF1F14", "#CF14C6", "#67F57C", "#4904A0",
+               "#FF6D6D", "#9EFFA5", "#C96B1D", "#00FF0E", "#FFEB00", "#FF0045", "#0500FF",
+               "#88B00A", "#FF2700", "#00A6FF", "#BB2172", "#276C1D", "#FFD52E", "#F63E15FF")
+    names(color) <- 1:length(color)
 
     if(own_design$is_ok){
       labs_cond <- own_design$d
-
-      nd_color <- rep("", length(labs_cond))
-
-      if(any(grepl("^NA$", labs_cond))){
-        cd <- unique(labs_cond[-which(labs_cond == "NA")])
-        nd_color[which(labs_cond == "NA")] <- "#A5A3A3"
-        ci = 1
-        for(i in cd){
-          nd_color[which(labs_cond == i)] <- color[ci]
-          ci = ci + 1
-        }
-      }
-      else{
-        cd <- unique(labs_cond)
-        ci = 1
-        for(i in cd){
-          nd_color[which(labs_cond == i)] <- color[ci]
-          ci = ci + 1
-        }
-      }
     }
     else{
       if(input$same_nb_rep | !nbrep_matrix_check$x){
@@ -928,21 +910,25 @@ server <- function(input, output, session){
                                                         colnames(input$cond_name),
                                                         value = TRUE)])
                      )
+    }
 
-      does_miss <- nb_chan - length(labs_cond)
 
-      nd_color <- rep("", length(labs_cond))
+    nd_color <- rep("", length(labs_cond))
+    cd <- unique(labs_cond)
+    ci = 1
+    for(i in cd){
+      nd_color[which(labs_cond == i)] <- color[ci]
+      ci = ci + 1
+    }
 
-      ci = 1
-      for(i in unique(labs_cond)){
-        nd_color[which(labs_cond == i)] <- color[ci]
-        ci = ci + 1
-      }
-
-      if(does_miss > 0){
-        labs_cond <- c(labs_cond, rep("NA", does_miss))
-        nd_color[which(labs_cond == "NA")] <- "#A5A3A3"
-      }
+    if(any(grepl("^NA$", labs_cond))){
+      nd_color[grep("^NA$", labs_cond)] <- "white"
+    }
+    if(any(grepl("^Mix", labs_cond))){
+      nd_color[grep("^Mix", labs_cond)] <- "#EBB564"
+    }
+    if(any(grepl("^Ref", labs_cond, ignore.case = TRUE))){
+      nd_color[grep("^Ref", labs_cond, ignore.case = TRUE)] <- "#9D825D"
     }
 
     min_dist <- max(stringr::str_length(labs_cond))*20 + nb_chan*40
@@ -955,7 +941,8 @@ server <- function(input, output, session){
                         shape = c(rep("dot", nb_chan), rep("circle", nb_chan)),
                         y = 1,
                         x = rep(seq(-min_dist, min_dist, (min_dist*2)/(nb_chan - 1)), 2),
-                        color = c(rep("#FFFFFF00", nb_chan), nd_color),
+                        color.background = c(rep("#FFFFFF00", nb_chan), nd_color),
+                        color.border = c(rep("#FFFFFF00", nb_chan),rep("black", nb_chan)),
                         font.size = c(rep(max(good_font_size) - 4, nb_chan),
                                       good_font_size)
     )
@@ -1015,7 +1002,7 @@ server <- function(input, output, session){
 
     net_vis <- visNetwork(nodes, edges, width = "100%",
                           main =  paste0("Noise of ", noise, "%")) %>%
-      visNodes(fixed = TRUE) %>%
+      visNodes(fixed = TRUE, borderWidth = 2) %>%
       visEdges(smooth = list(enabled = TRUE, type = "curvedCW", roundness = 0.6)) %>%
       visInteraction(navigationButtons = TRUE) %>%
       visExport(type = "png", name = paste0(format(Sys.time(), "%y%m%d_%H%M_"), "TMTdesign"),
@@ -1109,7 +1096,7 @@ server <- function(input, output, session){
         id2 <- nodes_info$id[which(nodes_info$label == ids[2])] + nb_chan
 
         nodes_info$label <- optTMT:::swapPositions(nodes_info$label, id1, id2)
-        nodes_info$color <- optTMT:::swapPositions(nodes_info$color, id1, id2)
+        nodes_info$color.background <- optTMT:::swapPositions(nodes_info$color.background, id1, id2)
         nodes_info$font.size <- as.numeric(optTMT:::swapPositions(nodes_info$font.size, id1, id2))
 
         visNetworkProxy("own_design") %>%
