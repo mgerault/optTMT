@@ -25,9 +25,11 @@ tmt_interference_noise <- function(design, tmt_correction = NULL){
         tmt_correction <- tmt_correction %>%
           tidyr::gather("rm", "value", -Mass.Tag) %>%
           dplyr::select(-rm) %>%
-          dplyr::mutate(to = sub("\\)", "", sub(".*\\(", "", value)),
+          dplyr::mutate(from = sub("\\)", "", sub(".*\\(", "", value)),
                         value = as.numeric(sub("%.*", "", value))) %>%
           dplyr::filter(!is.na(value))
+        colnames(tmt_correction) <- c("to", "value", "Mass.Tag")
+        tmt_correction <- tmt_correction[,c("Mass.Tag", "value", "to")]
       }
     }
     else{
@@ -48,9 +50,11 @@ tmt_interference_noise <- function(design, tmt_correction = NULL){
       tmt_correction <- tmt_correction %>%
         tidyr::gather("rm", "value", -Mass.Tag) %>%
         dplyr::select(-rm) %>%
-        dplyr::mutate(to = sub("\\)", "", sub(".*\\(", "", value)),
+        dplyr::mutate(from = sub("\\)", "", sub(".*\\(", "", value)),
                       value = as.numeric(sub("%.*", "", value))) %>%
         dplyr::filter(!is.na(value))
+      colnames(tmt_correction) <- c("to", "value", "Mass.Tag")
+      tmt_correction <- tmt_correction[,c("Mass.Tag", "value", "to")]
     }
     else if(!all(c("value", "to") %in% colnames(tmt_correction))){
       message("Error: The TMT interference data should either contain the column 'Mass.Tag', 'value' and 'to' or 'Mass.Tag', '-1' and '+1'")
