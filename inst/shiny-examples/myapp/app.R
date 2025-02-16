@@ -193,7 +193,7 @@ server <- function(input, output, session){
                    <br><img src='example_TMT_pdf.png' alt='pdf example', width='720' height='1080'><br>
                    <br>As you can see you can upload any pdf from ThermoFisher's product data sheet containing the
                    TMT channel leakage data. Note that this pdf should contains the data for all channel; so
-                   if you pplan to use TMT18, this pdf should contain 18 lines. If you can't find such pdf, you'll have
+                   if you plan to use TMT18, this pdf should contain 18 lines. If you can't find such pdf, you'll have
                    to write the data in an xlsx, csv or txt (tab delimited) file. To gain time, you can upload the
                    TMT16 data sheet, download the obtained file and add the last two lines containing the data for the
                    TMT18 channels.<br>
