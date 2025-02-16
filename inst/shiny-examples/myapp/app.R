@@ -14,7 +14,7 @@ ui <- navbarPage(title = "TMT interference optimization",
                  theme = "paper.css", # file in www
                  collapsible = TRUE, # usefull when viewing on smaller screen
                  inverse = FALSE, # true: use a dark background and light text for the navigation bar
-                 windowTitle = "tmt_opt", # just name of tab
+                 windowTitle = "optTMT", # just name of tab
                  position = "fixed-top",
                  header = tagList(
                    shinyWidgets::useShinydashboard(),      # allow to render the boxes from shinydashboard
