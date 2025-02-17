@@ -118,7 +118,7 @@ read_tmtinterference <- function(f){
       return()
     }
 
-    mass_tag <- which(apply(df, 2, function(x) all(grepl("1(2|3)\\d{1}($|N$|C$|D$)", x))))
+    mass_tag <- which(apply(df, 2, function(x) all(grepl("1(2|3)\\d{1}($|N$|C$|D$|ND$|CD$)", x))))
     if(length(mass_tag) != 1){
       message("Error: Only one column should contain the mass tag ! Check your file")
       return()
