@@ -54,7 +54,7 @@ draw_design <- function(design, tmt_correction = NULL){
                     else{
                       cols[[cn]]
                     }})
-  ncond <- sum(names(fills) %in% LETTERS)
+  ncond <- sum(names(fills) %in% 1:35)
 
   g <- ggplot(df, aes(x, y)) +
     geom_point(size = 18, shape = 21, stroke = 1.25,
