@@ -101,7 +101,7 @@ ui <- navbarPage(title = "TMT interference optimization",
                                                               ),
                                              conditionalPanel(condition = "!input.get_exact",
                                                               column(4, numericInput("nb_iter", "Choose a maximum number of iterations",
-                                                                                     min = 1, step = 5, value = 10, width = "100%")),
+                                                                                     min = 1, step = 1, value = 5, width = "100%")),
                                                               )
                                              ),
                             column(4, actionButton("plot_opt", "Plot optimal design", class = "btn-success btn-lg"))
@@ -519,7 +519,7 @@ server <- function(input, output, session){
     },
     content = function(file){
       ggsave(file, plot = opt_design$plt, device = "png", units = "in",
-             height = 2.5, width = 10)
+             height = 3, width = 27)
     }
   )
 
