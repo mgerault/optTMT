@@ -170,6 +170,14 @@ read_tmtinterference <- function(f){
                         ch <- ifelse(ch < 1 | ch > nrow(df), NA, ch)
                         ch <- df$Mass.Tag[ch]
 
+                        # handling deuterium case
+                        deuterium_check <- grep("[CND]$", ch, value = TRUE)
+                        deuterium_check <- sub('.*(?=.$)', '', deuterium_check, perl=T)
+                        if(length(unique(deuterium_check)) != 1){
+                          isotope <- sub("\\d{3}", "", df$Mass.Tag[chidx])
+                          ch[grep(paste0(isotope, "$"), ch, invert = TRUE)] <- NA
+                        }
+
                         xch <- gsub(".*\\(|\\)", "", x)
 
                         if(any(grepl("%", xch))){
@@ -229,3 +237,4 @@ read_tmtinterference <- function(f){
 
   return(df)
 }
+
