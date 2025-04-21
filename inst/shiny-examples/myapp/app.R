@@ -857,7 +857,7 @@ server <- function(input, output, session){
     }
     else{
       t <- paste0("<span style='color:red;'>",
-                  "Your design doesn't the fit the number of replicates you selected !", "</span><br>")
+                  "Your design doesn't fit the number of replicates you selected ! Update the channel's assignments in the section above to fit your design's parameters or click again on 'Plot optimal design' to automatically update the channel's assignments.", "</span><br>")
     }
   })
 
