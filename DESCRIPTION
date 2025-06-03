@@ -1,7 +1,7 @@
 Package: optTMT
 Type: Package
 Title: Optimize your experimental design for proteomics TMT experiment
-Version: 1.0.1
+Version: 1.0.2
 Author: Marc-Antoine GERAULT
 Maintainer: Marc-Antoine GERAULT <marco.gerault@gmail.com>
 Description: Contains functions and a shiny application to find the optimal experimental design
