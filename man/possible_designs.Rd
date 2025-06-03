@@ -4,14 +4,18 @@
 \alias{possible_designs}
 \title{possible_designs}
 \usage{
-possible_designs(design)
+possible_designs(design, computing_all = FALSE)
 }
 \arguments{
 \item{design}{A named vector stating the which sample is assigned to which TMT channel.}
+
+\item{computing_all}{Logical to tell if you to compute all possible equivalent design.
+If FALSE, up to 50 designs will be kept as the number of possible design can quickly
+explode with higher number of conditions and bigger TMT set. Default is FALSE.}
 }
 \value{
-A data.frame containing all equivalent designs
+A data.frame containing all or up to 50 equivalent designs
 }
 \description{
-Function to get all equivalent design producing the same global interference
+Function to get up to 50 equivalent designs producing the same global interference
 }
