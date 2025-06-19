@@ -57,8 +57,11 @@ ui <- navbarPage(title = "TMT interference optimization",
                                                     )
                                              ),
                             conditionalPanel(condition = "input.noise_datatype == 'def'",
-                                             column(6, selectInput("nb_channels", "How many TMT channels do you want to use ?",
-                                                                   choices = c("10", "11", "16", "18", "32", "35"), selected = "16", width = "90%")
+                                             column(3, selectInput("nb_channels", "How many TMT channels do you want to use ?",
+                                                                   choices = c("10", "11", "16", "18", "32", "35"), selected = "16", width = "80%")
+                                                    ),
+                                             column(3, numericInput("nb_batch", "How many batch do you want to use ?",
+                                                                    min = 1, step = 1, value = 1, width = "80%")
                                                     )
                                              )
                             ),
@@ -119,6 +122,8 @@ ui <- navbarPage(title = "TMT interference optimization",
                    tags$hr(),
 
                    shiny::HTML("<h1>Plot and compute noise from your design</h1><br>"),
+                   conditionalPanel(condition = "input.nb_batch > 1",
+                                    selectInput("selected_batch", "Select which batch you would like to visualize", choices = c(1), width = "50%")),
                    uiOutput("cond_name_ui"),
                    shiny::HTML("<br><h2>Assign your channels to your conditons</h2>"),
                    tableOutput("design_table"),
@@ -301,7 +306,7 @@ server <- function(input, output, session){
         nbrep_matrix_check$x <- FALSE
         nbrep_matrix_check$t <- "Only positive non null value are allowed !"
       }
-      else if(sum(mat_nbrep) > as.numeric(nbchan_react())){
+      else if(sum(mat_nbrep) > as.numeric(nbchan_react())*input$nb_batch){
         nbrep_matrix_check$x <- FALSE
         nbrep_matrix_check$t <- "The sum of replicates is greater than the number of channels !"
       }
@@ -319,12 +324,16 @@ server <- function(input, output, session){
 
   observe({
     if(input$same_nb_rep | !nbrep_matrix_check$x){
-      max_cond <- as.numeric(nbchan_react())%/%input$nb_rep
+      max_cond <- (as.numeric(nbchan_react())*input$nb_batch)%/%input$nb_rep
     }
     else{
-      max_cond <- as.numeric(nbchan_react())
+      max_cond <- as.numeric(nbchan_react())*input$nb_batch
     }
-    max_rep <- as.numeric(nbchan_react())%/%input$nb_cond
+    max_rep <- (as.numeric(nbchan_react())*input$nb_batch)%/%input$nb_cond - 1*(input$nb_batch > 1)
+    max_rep <- ifelse(max_rep > as.numeric(nbchan_react()) %/% 2,
+                      ifelse(input$nb_batch >= input$nb_cond, as.numeric(nbchan_react()),
+                             as.numeric(nbchan_react()) %/% 2),
+                      max_rep)
 
     updateNumericInput(session, "nb_cond", max = max_cond)
     updateNumericInput(session, "nb_rep", max = max_rep)
@@ -339,10 +348,10 @@ server <- function(input, output, session){
     }
 
     if(input$same_nb_rep | !nbrep_matrix_check$x){
-      nb_mix <- as.numeric(nbchan_react()) - input$nb_rep*input$nb_cond
+      nb_mix <- as.numeric(nbchan_react())*input$nb_batch - input$nb_rep*input$nb_cond
     }
     else{
-      nb_mix <- as.numeric(nbchan_react()) - sum(as.numeric(input$diff_nb_rep[,1]))
+      nb_mix <- as.numeric(nbchan_react())*input$nb_batch - sum(as.numeric(input$diff_nb_rep[,1]))
     }
 
     if(!is.na(nb_mix)){
@@ -358,7 +367,7 @@ server <- function(input, output, session){
       nb <- sum(as.numeric(input$diff_nb_rep[,1]))
     }
 
-    nb <- nb < as.numeric(nbchan_react())
+    nb <- nb < as.numeric(nbchan_react())*input$nb_batch
     if(!nb){
       updateSelectInput(session, "nb_mix", selected = 0)
     }
@@ -366,12 +375,15 @@ server <- function(input, output, session){
   })
   outputOptions(output, "is_mix", suspendWhenHidden = FALSE)
 
+  observe({
+    updateSelectInput(session, "selected_batch", choices = 1:input$nb_batch, selected = 1)
+  })
 
 
   ### compute and plot optimal design
   output$is_already_compted <- reactive({
     opt <- FALSE
-    if(input$nb_mix == "0" & input$same_nb_rep){
+    if(input$nb_mix == "0" & input$same_nb_rep  & input$nb_batch == 1){
       if(input$nb_cond == 3 & input$nb_rep == 3){
         if(nbchan_react() == "10" | nbchan_react() == "11"){
           opt <- TRUE
@@ -428,7 +440,7 @@ server <- function(input, output, session){
 
     design <- NULL
 
-    if(input$nb_mix == "0" & input$same_nb_rep){
+    if(input$nb_mix == "0" & input$same_nb_rep & input$nb_batch == 1){
       if(input$nb_cond == 3 & input$nb_rep == 3){
         if(nbchan_react() == "10"){
           design <- c(rep(1:2, 3), NA, rep(3, 3))
@@ -478,7 +490,7 @@ server <- function(input, output, session){
         }
 
         design <- tmt_optimal(nbchan_react(), ncond = input$nb_cond,
-                              tmt_correction = tmtinter,
+                              tmt_correction = tmtinter, nbatch = input$nb_batch,
                               rep = replicates, nmix = as.numeric(input$nb_mix),
                               maxiter = input$nb_iter, exact = input$get_exact)
       },
@@ -487,10 +499,24 @@ server <- function(input, output, session){
         }
       )
 
-      design <- unlist(c(design[nrow(design),]))[-ncol(design)]
+      if(input$nb_batch > 1){
+        design <- lapply(design, function(x) unlist(c(x[nrow(x),]))[-ncol(x)])
+      }
+      else{
+        design <- unlist(c(design[nrow(design),]))[-ncol(design)]
+      }
     }
 
-    names(design) <- TMTion[[nbchan_react()]]
+    if(input$nb_batch > 1){
+      design <- lapply(design, function(x){
+        names(x) <- TMTion[[nbchan_react()]];
+        x
+      })
+    }
+    else{
+      names(design) <- TMTion[[nbchan_react()]]
+      design <- list(design)
+    }
 
     design
   })
@@ -519,7 +545,7 @@ server <- function(input, output, session){
     },
     content = function(file){
       ggsave(file, plot = opt_design$plt, device = "png", units = "in",
-             height = 3, width = 27)
+             height = 3*input$nb_batch, width = 27)
     }
   )
 
@@ -544,9 +570,16 @@ server <- function(input, output, session){
 
   ### plot and compute noise of design
   output$cond_name_ui <- renderUI({
-    m_cond <- matrix(LETTERS[1:input$nb_cond], nrow = 1, ncol = input$nb_cond)
-    colnames(m_cond) <- paste("Condition", 1:input$nb_cond)
-    m <- m_cond
+    if(input$nb_batch > 1 & length(opt_design$des) == input$nb_batch){
+      d <- opt_design$des[[as.numeric(input$selected_batch)]]
+      conditions <- na.omit(as.numeric(names(table(d))))
+      m_cond <- matrix(LETTERS[conditions], nrow = 1, ncol = length(conditions))
+      colnames(m_cond) <- paste("Condition", conditions)
+    }
+    else{
+      m_cond <- matrix(LETTERS[1:input$nb_cond], nrow = 1, ncol = input$nb_cond)
+      colnames(m_cond) <- paste("Condition", 1:input$nb_cond)
+    }
 
     if(input$nb_mix != 0){
       if(input$nb_mix == 1){
@@ -557,11 +590,11 @@ server <- function(input, output, session){
         m_mix <- matrix(paste("Mix", 1:input$nb_mix), nrow = 1, ncol = as.numeric(input$nb_mix))
         colnames(m_mix) <- paste("Mix channel", 1:as.numeric(input$nb_mix))
       }
-      m <- cbind(m, m_mix)
+      m_cond <- cbind(m_cond, m_mix)
     }
 
     matrixInput("cond_name", "Type names for your conditions (optional)",
-                value = m,
+                value = m_cond,
                 rows = list(names = FALSE),
                 cols = list(names = TRUE)
     )
@@ -580,14 +613,17 @@ server <- function(input, output, session){
     nb_chan <- as.numeric(nbchan_react())
 
     all_cond <- input$cond_name[1,]
+    nbcond <- as.numeric(sub("Condition ", "", names(all_cond)))
+    nbcond <- length(na.omit(nbcond))
+
     if(input$same_nb_rep | !nbrep_matrix_check$x){
-      does_miss <- nb_chan - (input$nb_cond*input$nb_rep + as.numeric(input$nb_mix))
+      does_miss <- nb_chan - (nbcond*input$nb_rep + as.numeric(input$nb_mix))
     }
     else{
-      does_miss <- nb_chan - (sum(as.numeric(input$diff_nb_rep[,1])) + as.numeric(input$nb_mix))
+      does_miss <- nb_chan - (sum(as.numeric(input$diff_nb_rep[,1][names(all_cond)])) + as.numeric(input$nb_mix))
     }
 
-    if(does_miss > 0){
+    if(does_miss > 0 | input$nb_batch > 1 & length(opt_design$des) != input$nb_batch){ # if no optimal batch ran, let user to add empty channel anyway
       all_cond <- c(all_cond, "NA")
     }
 
@@ -606,8 +642,8 @@ server <- function(input, output, session){
     count = 1
     count_rep = 1
     for(i in 1:nb_chan){
-      if(!input$same_nb_rep &  nbrep_matrix_check$x){
-        if(i > sum(as.numeric(input$diff_nb_rep[,1])[1:ifelse(count_rep > input$nb_cond, input$nb_cond, count_rep)], na.rm = TRUE)){
+      if(!input$same_nb_rep & nbrep_matrix_check$x){
+        if(i > sum(as.numeric(input$diff_nb_rep[,1])[1:ifelse(count_rep > nbcond, nbcond, count_rep)], na.rm = TRUE)){
           count = count + 1
           count_rep = count_rep + 1
         }
@@ -628,10 +664,12 @@ server <- function(input, output, session){
     colnames(channels) <- TMTion[[nbchan_react()]]
 
     # if computed opt design, change default selection to it
-    if(!is.null(opt_design$des)){
-      if(as.numeric(nbchan_react()) == length(opt_design$des)){
+    if(!is.null(opt_design$des[[as.numeric(input$selected_batch)]])){
+      d <- opt_design$des[[as.numeric(input$selected_batch)]]
+
+      if(as.numeric(nbchan_react()) == length(d)){
         if(as.numeric(nbchan_react()) <= 18){
-          name_chan <- names(opt_design$des)
+          name_chan <- names(d)
         }
         else{
           name_chan <- TMTion[[nbchan_react()]]
@@ -640,14 +678,14 @@ server <- function(input, output, session){
         channels <- mapply(function(ch, sel){
           sel <- sub(" selected", "", sel)
 
-          if(!is.na(opt_design$des[[ch]])){
-            if(opt_design$des[[ch]] == "Mix"){
-              if(sum(grepl("Mix", opt_design$des)) == 1){
+          if(!is.na(d[[ch]])){
+            if(d[[ch]] == "Mix"){
+              if(sum(grepl("Mix", d)) == 1){
                 cd <- input$cond_name[[grep(paste0("^Mix channel$"), colnames(input$cond_name))]]
               }
               else{
                 # get order of mix channels
-                cd <- which(opt_design$des == "Mix")
+                cd <- which(d == "Mix")
                 cd <- sapply(1:length(cd), function(x){
                   y <- cd[x]
                   y[[1]] <- x;
@@ -660,7 +698,7 @@ server <- function(input, output, session){
                          sel)
             }
             else{
-              cd <- input$cond_name[[grep(paste0("^Condition ", opt_design$des[[ch]], "$"), colnames(input$cond_name))]]
+              cd <- input$cond_name[[grep(paste0("^Condition ", d[[ch]], "$"), colnames(input$cond_name))]]
 
               sel <- sub(paste0(" value='", cd, "'>"),
                          paste0(" value='", cd, "' selected>"),
@@ -702,11 +740,14 @@ server <- function(input, output, session){
     }
     else{
       all_cond <- input$cond_name[1,]
+      nbcond <- as.numeric(sub("Condition ", "", names(all_cond)))
+      nbcond <- length(na.omit(nbcond))
+
       if(input$same_nb_rep | !nbrep_matrix_check$x){
-        does_miss <- nb_chan - (input$nb_cond*input$nb_rep + as.numeric(input$nb_mix))
+        does_miss <- nb_chan - (nbcond*input$nb_rep + as.numeric(input$nb_mix))
       }
       else{
-        does_miss <- nb_chan - (sum(as.numeric(input$diff_nb_rep[,1])) + as.numeric(input$nb_mix))
+        does_miss <- nb_chan - (sum(as.numeric(input$diff_nb_rep[,1][names(all_cond)])) + as.numeric(input$nb_mix))
       }
 
       if(does_miss > 0){
@@ -723,7 +764,7 @@ server <- function(input, output, session){
       count_rep = 1
       for(i in 1:(length(TMTion[[nbchan_react()]]))){
         if(!input$same_nb_rep &  nbrep_matrix_check$x){
-          if(i > sum(as.numeric(input$diff_nb_rep[,1])[1:ifelse(count_rep > input$nb_cond, input$nb_cond, count_rep)], na.rm = TRUE)){
+          if(i > sum(as.numeric(input$diff_nb_rep[,1])[1:ifelse(count_rep > nbcond, nbcond, count_rep)], na.rm = TRUE)){
             count = count + 1
             count_rep = count_rep + 1
           }
@@ -744,20 +785,22 @@ server <- function(input, output, session){
       colnames(channels) <- TMTion[[nbchan_react()]]
 
       # if computed opt design, change default selection to it
-      if(!is.null(opt_design$des)){
-        if(as.numeric(nbchan_react()) == length(opt_design$des)){
+      if(!is.null(opt_design$des[[as.numeric(input$selected_batch)]])){
+        d <- opt_design$des[[as.numeric(input$selected_batch)]]
+
+        if(as.numeric(nbchan_react()) == length(d)){
 
           channels <- mapply(function(ch, sel){
             sel <- sub(" selected", "", sel)
 
-            if(!is.na(opt_design$des[[ch]])){
-              if(opt_design$des[[ch]] == "Mix"){
-                if(sum(grepl("Mix", opt_design$des)) == 1){
+            if(!is.na(d[[ch]])){
+              if(d[[ch]] == "Mix"){
+                if(sum(grepl("Mix", d)) == 1){
                   cd <- input$cond_name[[grep(paste0("^Mix channel$"), colnames(input$cond_name))]]
                 }
                 else{
                   # get order of mix channels
-                  cd <- which(opt_design$des == "Mix")
+                  cd <- which(d == "Mix")
                   cd <- sapply(1:length(cd), function(x){
                     y <- cd[x]
                     y[[1]] <- x;
@@ -770,7 +813,7 @@ server <- function(input, output, session){
                            sel)
               }
               else{
-                cd <- input$cond_name[[grep(paste0("^Condition ", opt_design$des[[ch]], "$"), colnames(input$cond_name))]]
+                cd <- input$cond_name[[grep(paste0("^Condition ", d[[ch]], "$"), colnames(input$cond_name))]]
 
                 sel <- sub(paste0(" value='", cd, "'>"),
                            paste0(" value='", cd, "' selected>"),
@@ -821,7 +864,15 @@ server <- function(input, output, session){
 
       own_design$d <- design
 
-      if(ifelse(input$same_nb_rep | !nbrep_matrix_check$x, input$nb_cond*input$nb_rep, sum(as.numeric(input$diff_nb_rep[,1]))) < nb_chan){
+      all_cond <- input$cond_name[1,]
+      nbcond <- as.numeric(sub("Condition ", "", names(all_cond)))
+      nbcond <- length(na.omit(nbcond))
+
+      nb_chantaken <- ifelse(input$same_nb_rep | !nbrep_matrix_check$x,
+                             nbcond*input$nb_rep, sum(as.numeric(input$diff_nb_rep[,1][names(all_cond)]))
+                             )
+
+      if(nb_chantaken < nb_chan){
         if(input$nb_mix != "0"){
           mix_name <- as.character(input$cond_name[,grep("Mix",
                                                          colnames(input$cond_name),
@@ -830,7 +881,7 @@ server <- function(input, output, session){
           design <- design[-grep(paste0("^", mix_name, "$", collapse = "|"), design)]
         }
 
-        if(ifelse(input$same_nb_rep | !nbrep_matrix_check$x, input$nb_cond*input$nb_rep, sum(as.numeric(input$diff_nb_rep[,1]))) + as.numeric(input$nb_mix) < nb_chan){
+        if(nb_chantaken + as.numeric(input$nb_mix) < nb_chan){
           design <- design[-grep(paste0("^NA$"), design)]
         }
       }
@@ -839,7 +890,9 @@ server <- function(input, output, session){
       design <- table(design)[as.character(input$cond_name[,grep("Condition",
                                                                  colnames(input$cond_name),
                                                                  value = TRUE)])]
-      design <- ifelse(input$same_nb_rep | !nbrep_matrix_check$x, all(design == input$nb_rep), all(design == as.numeric(input$diff_nb_rep[,1])))
+      design <- ifelse(input$same_nb_rep | !nbrep_matrix_check$x,
+                       all(design == input$nb_rep), all(design == na.omit(as.numeric(input$diff_nb_rep[,1][names(all_cond)])))
+                       )
       if(is.na(design)){
         design <- FALSE
       }
@@ -898,7 +951,9 @@ server <- function(input, output, session){
         nbrep <- input$nb_rep
       }
       else{
-        nbrep <- as.numeric(input$diff_nb_rep[,1])
+        nbrep <- as.numeric(input$diff_nb_rep[,1][,grep("Condition", colnames(input$cond_name),
+                                                        value = TRUE)]
+                            )
       }
       labs_cond <-  unlist(mapply(rep, as.character(input$cond_name[,grep("Condition",
                                                                           colnames(input$cond_name),
@@ -947,7 +1002,7 @@ server <- function(input, output, session){
                                       good_font_size)
     )
 
-    # get design to compute interferences
+    # get design to compute interference
     design_info <- nodes %>% dplyr::group_by(x) %>%
       dplyr::summarise(channel = label[1], cond = label[2])
     design <- design_info %>%
