@@ -9,6 +9,7 @@ tmt_optimal(
   ncond = 3,
   rep = 3,
   nmix = 0,
+  nbatch = 1,
   tmt_correction = NULL,
   exact = FALSE,
   maxiter = 10,
@@ -26,6 +27,8 @@ If of the same length as the number of unique condition, it will assume a specif
 replicate for each condition.}
 
 \item{nmix}{The number of carrier channel. Only produce interference to other channels.}
+
+\item{nbatch}{Number of TMT batch}
 
 \item{tmt_correction}{A data.frame of three columns stating the amount of impurities in %
 of the corresponding channels. If NULL, takes the default data from optTMT.}
