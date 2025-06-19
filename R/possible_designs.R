@@ -12,42 +12,55 @@
 #' @export
 
 possible_designs <- function(design, computing_all = FALSE){
-  # getting permutations
-  conditions <- unique(design)
-  if(any("NA" %in% conditions)){
-    conditions <- conditions[-which(conditions == "NA")]
-  }
-  if(any(is.na(conditions))){
-    conditions <- na.omit(conditions)
-  }
-  if(any(grepl("^Mix", conditions))){
-    conditions <- conditions[-grep("^Mix", conditions)]
-  }
-  conditions <- sort(conditions)
-  conditions_perm <- multicool::allPerm(multicool::initMC(conditions))
-
-  # reducing number of designs
-  if(nrow(conditions_perm) > 50 & !computing_all){
-    conditions_perm <- conditions_perm[floor(seq(1, nrow(conditions_perm), length.out = 50)),]
+  # if only one batch changing in a list
+  if(class(design) != "list"){
+    design <- list(design)
   }
 
-  alldesigns <- apply(conditions_perm, 1,
-                      function(x){
-                        newdes <- rep(NA, length(design))
-                        for(i in conditions){
-                          newdes[which(design == i)] <- x[which(conditions == i)]
-                        }
-                        if(any(grepl("^Mix", design))){
-                          newdes[grep("^Mix", design)] <- grep("^Mix", design, value = TRUE)
-                        }
-                        newdes
-                      })
+  alldesigns <- list()
+  for(dl in 1:length(design)){
+    batch <- paste("Batch", dl)
+    dl <- design[[dl]]
 
-  # shaping
-  alldesigns <- as.data.frame(alldesigns)
-  colnames(alldesigns) <- paste0("design_", 1:ncol(alldesigns))
-  alldesigns$Mass.Tag <- names(design)
-  alldesigns <- alldesigns[,c(ncol(alldesigns), 1:(ncol(alldesigns) - 1))]
+    # getting permutations
+    conditions <- unique(dl)
+    if(any("NA" %in% conditions)){
+      conditions <- conditions[-which(conditions == "NA")]
+    }
+    if(any(is.na(conditions))){
+      conditions <- na.omit(conditions)
+    }
+    if(any(grepl("^Mix", conditions))){
+      conditions <- conditions[-grep("^Mix", conditions)]
+    }
+    conditions <- sort(conditions)
+    conditions_perm <- multicool::allPerm(multicool::initMC(conditions))
+
+    # reducing number of designs
+    if(nrow(conditions_perm) > 50 & !computing_all){
+      conditions_perm <- conditions_perm[floor(seq(1, nrow(conditions_perm), length.out = 50)),]
+    }
+
+    alldl <- apply(conditions_perm, 1,
+                        function(x){
+                          newdes <- rep(NA, length(dl))
+                          for(i in conditions){
+                            newdes[which(dl == i)] <- x[which(conditions == i)]
+                          }
+                          if(any(grepl("^Mix", dl))){
+                            newdes[grep("^Mix", dl)] <- grep("^Mix", dl, value = TRUE)
+                          }
+                          newdes
+                        })
+
+    # shaping
+    alldl <- as.data.frame(alldl)
+    colnames(alldl) <- paste0("design_", 1:ncol(alldl))
+    alldl$Mass.Tag <- names(dl)
+    alldl <- alldl[,c(ncol(alldl), 1:(ncol(alldl) - 1))]
+
+    alldesigns[[batch]] <- alldl
+  }
 
   return(alldesigns)
 }
